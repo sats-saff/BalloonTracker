@@ -1,6 +1,7 @@
 #! /usr/bin/python
 """Balloon tracker"""
 import sys
+import os
 from collections import OrderedDict
 import aprs_daemon
 
@@ -460,7 +461,7 @@ class MainWindow(QtGui.QMainWindow):
         self.webview.setSizePolicy(sizepol)
         self.webview.setAutoFillBackground(False)
         self.webview.setObjectName("webview")
-        self.webview.load(QtCore.QUrl.fromLocalFile("/home/mal/koodaus/aprs/gmap_openlayers.html"))
+        self.webview.load(QtCore.QUrl.fromLocalFile(os.path.dirname(os.path.realpath(__file__)) + "/gmap_openlayers.html"))
         self.webview.show()
 
     def _about(self):
