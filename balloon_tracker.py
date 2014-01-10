@@ -7,6 +7,7 @@ import aprs_daemon
 
 from PyQt4 import QtGui, QtCore
 from PyQt4 import QtWebKit
+from PyQt4.QtWebKit import QWebPage
 import PyQt4.Qwt5 as Qwt
 
 from matplotlib import rcParams
@@ -458,6 +459,7 @@ class MainWindow(QtGui.QMainWindow):
         sizepol.setHorizontalStretch(0)
         sizepol.setVerticalStretch(0)
         sizepol.setHeightForWidth(self.webview.sizePolicy().hasHeightForWidth())
+        self.webview.setPage(WebPage())
         self.webview.setSizePolicy(sizepol)
         self.webview.setAutoFillBackground(False)
         self.webview.setObjectName("webview")
@@ -644,6 +646,20 @@ class MainWindow(QtGui.QMainWindow):
                 filep.close()
             except IOError:
                 print "IO error"
+
+
+
+class WebPage(QWebPage):
+    """
+    Print out javascript console messages
+    """
+    def __init__(self, logger=None, parent=None):
+        super(WebPage, self).__init__(parent)
+
+    def javaScriptConsoleMessage(self, msg, lineNumber, sourceID):
+        print("JsConsole(%s:%d): %s" % (sourceID, lineNumber, msg))
+
+
 
 def main():
     """Start GUI for Balloon tracker"""
