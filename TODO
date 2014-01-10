@@ -1,0 +1,8 @@
+Test simulation
+Test GPS from serial port
+Test APRS from serial port and SDR
+Draw simulation paths to map (loading kml requires local webserver?)
+Fix appearance of extra markers when zooming
+Fix margins of plot area
+Fix temperature data from APRS packets
+Possibility for other data from APRS packets (selection from settings?)

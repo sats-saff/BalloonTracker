@@ -1,0 +1,18 @@
+Balloon tracker
+
+Usage:
+
+./balloon_tracker.py
+
+Requirements:
+- python
+- python-qt4
+- python-qwt5-qt4
+- python-matplotlib
+- python-numpy
+- pynmea2
+- python-libfap and libfap (optional, python-libfap-fix.patch
+                            required with libfap-1.3)
+- pyserial (optional)
+- pyBalloon (optional)
+- OpenLayers library
