@@ -59,6 +59,7 @@ function initialize() {
  livedatalayer.addFeatures([new OpenLayers.Feature.Vector(livedata, null, style)]);
  map.addLayer(livedatalayer);
  livedatalayer.redraw();
+
  positions = new OpenLayers.Layer.Markers("Positions");
  map.addLayer(positions);
 
@@ -119,7 +120,7 @@ function addPosition(lat, lon) {
 
 function cleanUpMarkers(limit) {
  while (positions.markers.length > limit) {
-  positions.markers.pop();
+  positions.removeMarker(positions.markers[positions.markers.length-1]);
  }
 }
 
