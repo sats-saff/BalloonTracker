@@ -544,9 +544,11 @@ class MainWindow(QtGui.QMainWindow):
             self.datahandler.join()
         else:
             self.startstop.setText("&Stop")
-            string = "cleanUpMarkers(0);\nsetCenter(%s, %s);\n\
-                     addPosition(%s, %s);\naddPosition(%s, %s);" % \
-                     (str(aprs_daemon.BALLOON['lat0']),
+            string = "cleanUpMarkers(0);\naddKML(%s);\n\
+                     setCenter(%s, %s);\naddPosition(%s, %s);\n\
+                     addPosition(%s, %s);" % \
+                     (aprs_daemon.PARAMETERS['kml_file'],
+                     str(aprs_daemon.BALLOON['lat0']),
                      str(aprs_daemon.BALLOON['lon0']),
                      str(aprs_daemon.BALLOON['lat0']),
                      str(aprs_daemon.BALLOON['lon0']),

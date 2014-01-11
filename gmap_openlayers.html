@@ -12,12 +12,14 @@
 <script type="text/javascript">
 "use strict";
 var map;
+var kmllayer;
 var livedata;
 var livedatalayer;
 var positions;
 
 function initialize() {
- map = new OpenLayers.Map('map_canvas', {
+ map = new OpenLayers.Map({
+  div: 'map_canvas',
   projection: 'EPSG:3857',
   layers: [
    new OpenLayers.Layer.Google(
@@ -35,7 +37,8 @@ function initialize() {
    new OpenLayers.Layer.Google(
     "Google Satellite",
     {type: google.maps.MapTypeId.SATELLITE, numZoomLevels: 22}
-   )
+   ),
+   new OpenLayers.Layer.OSM()
   ],
   center: new OpenLayers.LonLat(25.0, 60.1)
    // Google.v3 uses web mercator as projection, so we have to
@@ -45,20 +48,6 @@ function initialize() {
  });
  map.addControl(new OpenLayers.Control.LayerSwitcher());
 
-/*
- var kmllayer = new OpenLayers.Layer.Vector("KML", {
-            strategies: [new OpenLayers.Strategy.Fixed()],
-            protocol: new OpenLayers.Protocol.HTTP({
-                url: "file:///home/mal/koodaus/aprs/test2.kml",
-                format: new OpenLayers.Format.KML({
-                    extractStyles: true, 
-                    extractAttributes: true,
-                    maxDepth: 2
-                })
-            })
-        })
- map.addLayer(kmllayer);
-*/
  livedatalayer = new OpenLayers.Layer.Vector("Live data"); 
  livedata = new OpenLayers.Geometry.LineString(new Array());
 
@@ -77,6 +66,40 @@ function initialize() {
 // for (var i=map.layers.length-1; i>=0; --i) {
 //  map.layers[i].animationEnabled = this.checked;
 // }
+}
+
+function addKML(kmlfile) {
+ if (kmllayer) {
+  map.removeLayer(graphic);
+ }
+ if (kmlfile !== "") {
+ kmllayer = new OpenLayers.Layer.Vector("KML", {
+  projection: 'EPSG:4326',
+  strategies: [new OpenLayers.Strategy.Fixed(),
+               new OpenLayers.Strategy.Refresh({
+                interval: 1000,
+                force: true,
+                active: true})
+              ],
+  protocol: new OpenLayers.Protocol.HTTP({
+   url: kmlfile,
+   format: new OpenLayers.Format.KML({})
+  }),
+  styleMap: new OpenLayers.StyleMap({
+   "default": new OpenLayers.Style({
+    graphicName: "circle",
+    pointRadius: 2,
+    fillOpacity: 0.5,
+    fillColor: "#ffcc66",
+    strokeColor: "#666633",
+    strokeWidth: 1,
+    lineWidth:2
+   })
+  })
+ })
+ map.addLayer(kmllayer);
+ kmllayer.redraw();
+ }
 }
 
 function addPosition(lat, lon) {
@@ -103,11 +126,6 @@ function cleanUpMarkers(limit) {
 function addNode(lat, lon) {
  livedata.addPoint(new OpenLayers.Geometry.Point(lon, lat).transform('EPSG:4326', 'EPSG:3857'));
  livedatalayer.redraw();
-}
-
-function updateTrajectories() {
- //var prev = livedata.features[livedata.features.length - 1];
- //var next = new OpenLayers.LonLat(lon, lat).transform('EPSG:4326', 'EPSG:3857');
 }
 
 function setCenter(lat, lon) {
