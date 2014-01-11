@@ -430,7 +430,7 @@ class MainWindow(QtGui.QMainWindow):
         self.canvas = FigureCanvas(fig)
         self.axes.append(host_subplot(111, axes_class=aa.Axes))
         self.axes[0].set_xlabel("Time")
-        self.axes[0].set_ylabel("Altitude")
+        self.axes[0].set_ylabel(DATA_LABELS[9])
         self.axes[0].set_aspect('auto', 'datalim') 
         self.plots.append(self.axes[0].plot(aprs_daemon.LIVE_DATA['timestamps'],
                            aprs_daemon.LIVE_DATA['altitudes'])[0])
@@ -451,6 +451,7 @@ class MainWindow(QtGui.QMainWindow):
                         offset=(offset*(60*((row-5)%2+(row-5)/2)), 0))
 
             self.axes[row-4].axis[side].label.set_visible(True)
+            self.axes[row-4].axis[side].major_ticklabels.set_ha(side)
             self.axes[row-4].axis[side].set_label(DATA_LABELS[2*row+1])
             self.plots.append(self.axes[row-4].plot(aprs_daemon.LIVE_DATA['timestamps'],
                         aprs_daemon.LIVE_DATA[DATA_LABELS[2*row]])[0])

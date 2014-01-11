@@ -2,7 +2,7 @@ Test simulation
 Test GPS from serial port
 Test APRS from serial port and SDR
 Test drawing simulation paths to map
-Fix margins of plot area
+Fix text overlap of plot area
 Fix temperature data from APRS packets
 Possibility for other data from APRS packets (selection from settings?)
 Statusbar messages, GPS status, etc
