@@ -245,11 +245,22 @@ class MainWindow(QtGui.QMainWindow):
         self.setCentralWidget(centralwidget)
         #menubar
         self.startstop = None
+        self.followtoggle = None
+        self.followtarget = 0
         self.setMenuBar(self.create_menubar())
         #statusbar
         self.statusbar = QtGui.QStatusBar(self)
         self.statusbar.setObjectName("statusbar")
         self.setStatusBar(self.statusbar)
+        self.runstatus = QtGui.QLabel("Ready")
+        self.statusbar.addPermanentWidget(self.runstatus)
+        self.followstatus = QtGui.QLabel("Balloon")
+        self.statusbar.addPermanentWidget(self.followstatus)
+        self.gpsstatus = QtGui.QLabel("GPS")
+        self.gpsstatus.setStyleSheet('color: gray')
+        self.statusbar.addPermanentWidget(self.gpsstatus)
+        self.statusmessage = QtGui.QLabel("")
+        self.statusbar.addPermanentWidget(self.statusmessage, 1)
         #toolbar
         #self.toolBar = QtGui.QToolBar(self)
         #self.toolBar.setObjectName("toolBar")
@@ -341,6 +352,8 @@ class MainWindow(QtGui.QMainWindow):
         exit_program.setObjectName("exit")
         self.startstop = QtGui.QAction("&Start", self)
         self.startstop.setObjectName("startstop")
+        self.followtoggle = QtGui.QAction("&Follow GPS", self)
+        self.followtoggle.setObjectName("followtoggle")
         general_settings = QtGui.QAction("&General", self)
         general_settings.setObjectName("general_settings")
         balloon_settings = QtGui.QAction("&Balloon", self)
@@ -356,6 +369,7 @@ class MainWindow(QtGui.QMainWindow):
         menu_file.addSeparator()
         menu_file.addAction(exit_program)
         menu_operation.addAction(self.startstop)
+        menu_operation.addAction(self.followtoggle)
         menu_help.addAction(help_window)
         menu_help.addSeparator()
         menu_help.addAction(about)
@@ -379,6 +393,8 @@ class MainWindow(QtGui.QMainWindow):
                 QtCore.SIGNAL("triggered()"), self._exit)
         QtCore.QObject.connect(self.startstop,
                 QtCore.SIGNAL("triggered()"), self._startstop)
+        QtCore.QObject.connect(self.followtoggle,
+                QtCore.SIGNAL("triggered()"), self._followtoggle)
         QtCore.QObject.connect(general_settings,
                 QtCore.SIGNAL("triggered()"), self._general_settings)
         QtCore.QObject.connect(balloon_settings,
@@ -515,10 +531,18 @@ class MainWindow(QtGui.QMainWindow):
     def _update_map(self):
         """Update map"""
         #FIXME follow current location or balloon?
-        string = "setCenter(%s, %s);\naddPosition(%s, %s);" % \
-                 (str(aprs_daemon.LIVE_DATA['lats'][-1]),
-                 str(aprs_daemon.LIVE_DATA['lons'][-1]),
-                 str(self.datahandler.loc['lat']),
+        string = ""
+        if self.followtarget == 0:
+          string = "setCenter(%s, %s);" % \
+                   (str(aprs_daemon.LIVE_DATA['lats'][-1]),
+                   str(aprs_daemon.LIVE_DATA['lons'][-1]))
+        else:
+          string = "setCenter(%s, %s);" % \
+                   (str(self.datahandler.loc['lat']),
+                   str(self.datahandler.loc['lon']))
+        self.webview.page().mainFrame().evaluateJavaScript(string)
+        string = "addPosition(%s, %s);" % \
+                 (str(self.datahandler.loc['lat']),
                  str(self.datahandler.loc['lon']))
         self.webview.page().mainFrame().evaluateJavaScript(string)
         #update tracks
@@ -540,10 +564,12 @@ class MainWindow(QtGui.QMainWindow):
         """Start collecting and processing data"""
         if self.datahandler.is_active():
             self.startstop.setText("&Start")
+            self.runstatus.setText("Ready")
             self.datahandler.exit()
             self.datahandler.join()
         else:
             self.startstop.setText("&Stop")
+            self.runstatus.setText("Running")
             string = "cleanUpMarkers(0);\naddKML(%s);\n\
                      setCenter(%s, %s);\naddPosition(%s, %s);\n\
                      addPosition(%s, %s);" % \
@@ -558,6 +584,17 @@ class MainWindow(QtGui.QMainWindow):
             if not self.datahandler.is_alive():
                 self.datahandler = aprs_daemon.DataHandlerThread(self)
             self.datahandler.start()
+
+    def _followtoggle(self):
+        """Toggle followed target"""
+        if self.followtarget == 0:
+            self.followtoggle.setText("&Follow Balloon")
+            self.followstatus.setText("GPS")
+            self.followtarget = 1
+        else:
+            self.followtoggle.setText("&Follow GPS")
+            self.followstatus.setText("Balloon")
+            self.followtarget = 0
 
     def closeEvent(self, event):
         """Handle window close event"""
@@ -664,6 +701,7 @@ def main():
     """Start GUI for Balloon tracker"""
     root = QtGui.QApplication(sys.argv)
     app = MainWindow()
+    app.setStyleSheet("QStatusBar::item { border-width: 1px 1px; border-style: inset; border-color: #cccccc }; ");
     app.show()
     sys.exit(root.exec_())
 
