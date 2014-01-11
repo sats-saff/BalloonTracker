@@ -459,7 +459,7 @@ class MainWindow(QtGui.QMainWindow):
         sizepol.setHorizontalStretch(0)
         sizepol.setVerticalStretch(0)
         sizepol.setHeightForWidth(self.webview.sizePolicy().hasHeightForWidth())
-        self.webview.setPage(WebPage())
+        self.webview.setPage(WebPage(self.webview))
         self.webview.setSizePolicy(sizepol)
         self.webview.setAutoFillBackground(False)
         self.webview.setObjectName("webview")
@@ -655,9 +655,6 @@ class WebPage(QWebPage):
     """
     Print out javascript console messages
     """
-    def __init__(self, logger=None, parent=None):
-        super(WebPage, self).__init__(parent)
-
     def javaScriptConsoleMessage(self, msg, lineNumber, sourceID):
         print("JsConsole(%s:%d): %s" % (sourceID, lineNumber, msg))
 
