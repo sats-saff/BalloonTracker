@@ -571,7 +571,7 @@ class MainWindow(QtGui.QMainWindow):
         else:
             self.startstop.setText("&Stop")
             self.runstatus.setText("Running")
-            string = "cleanUpMarkers(0);\naddKML(%s);\n\
+            string = "cleanUpMarkers(0);\naddKML(\"%s\");\n\
                      setCenter(%s, %s);\naddPosition(%s, %s);\n\
                      addPosition(%s, %s);" % \
                      (aprs_daemon.PARAMETERS['kml_file'],
@@ -645,7 +645,7 @@ class MainWindow(QtGui.QMainWindow):
                         elif param_conf[content[0]][1] == "bool":
                             params[content[0]] = bool(int(content[1]))
                         else:
-                            params[content[0]] = content[1]
+                            params[content[0]] = str(content[1])
                 filep.close()
             except IOError:
                 print "IOError"
