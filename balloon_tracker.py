@@ -4,6 +4,7 @@ import sys
 import os
 from collections import OrderedDict
 import aprs_daemon
+import numpy as np
 
 from PyQt4 import QtGui, QtCore
 from PyQt4 import QtWebKit
@@ -84,7 +85,7 @@ BALLOON_SETTINGS = OrderedDict([
     ('thickness_empty',           ["Empty thickness (mm)",          "double"]),
     ('Cd_balloon',                ["Cd balloon",                    "double"]),
     ('Cd_parachute',              ["Cd parachute",                  "double"]),
-    ('parachute_areas',           ["Parachute areas (m^2)",         "string"]),
+    ('parachute_areas',           ["Parachute areas (m^2)",         "doublelist"]),
     ("parachute_change_altitude", ["Parachute change altitude (m)", "double"])
 ])
 
@@ -166,7 +167,17 @@ class SettingsDialog(QtGui.QDialog):
                         self.settings[key].setCurrentIndex(item)
             elif self.param_conf[key][1] == "bool":
                 self.settings[key] = QtGui.QCheckBox(self)
-                self.settings[key].setTristate(self.params[key])
+                self.settings[key].setChecked(self.params[key])
+            elif self.param_conf[key][1] == "doublelist":
+                self.settings[key] = QtGui.QLineEdit(self)
+                values = self.params[key]
+                if key == "parachute_areas":
+                    values = [np.sqrt(values[0]/np.pi), np.sqrt(values[1]/np.pi)]
+                itervalues = iter(values)
+                string = str(next(itervalues))
+                for value in itervalues:
+                    string += ","+str(value)
+                self.settings[key].setText(string)
             self.settings[key].setObjectName(key)
             settingslayout.addRow(self.param_conf[key][0], self.settings[key])
         return settingsframe
@@ -192,6 +203,11 @@ class SettingsDialog(QtGui.QDialog):
                 self.params[key] = self.param_conf[key][4+2*self.settings[key].currentIndex()]
             elif self.param_conf[key][1] == "bool":
                 self.params[key] = self.settings[key].isChecked()
+            elif self.param_conf[key][1] == "doublelist":
+                values = self.settings[key].text().split(",")
+                if key == "parachute_areas":
+                    values = np.pi * np.array([float(values[0]), float(values[1])])**2
+                self.params[key] = values
         self.accept()
 
     def _reject(self):
@@ -644,6 +660,11 @@ class MainWindow(QtGui.QMainWindow):
                                 params[content[0]] = int(content[1])
                         elif param_conf[content[0]][1] == "bool":
                             params[content[0]] = bool(int(content[1]))
+                        elif param_conf[content[0]][1] == "doublelist":
+                            values = content[1].split(",")
+                            if content[0] == "parachute_areas":
+                                values = np.pi * np.array([float(values[0]), float(values[1])])**2
+                            params[content[0]] = values
                         else:
                             params[content[0]] = str(content[1])
                 filep.close()
@@ -680,6 +701,16 @@ class MainWindow(QtGui.QMainWindow):
                     elif BALLOON_SETTINGS[key][1] == "int" and \
                          aprs_daemon.BALLOON[key] is None:
                         filep.write(''.join([key, '\t-1\n']))
+                    elif BALLOON_SETTINGS[key][1] == "doublelist":
+                        values = aprs_daemon.BALLOON[key]
+                        if key == "parachute_areas":
+                            values = [np.sqrt(values[0]/np.pi),
+                                      np.sqrt(values[1]/np.pi)]
+                        itervalues = iter(values)
+                        string = str(next(itervalues))
+                        for value in itervalues:
+                            string += ","+str(value)
+                        filep.write(''.join([key, '\t', string, '\n']))
                     else:
                         filep.write(''.join([key, '\t',
                                     str(aprs_daemon.BALLOON[key]), '\n']))

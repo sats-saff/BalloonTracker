@@ -127,6 +127,10 @@ class DataCollectorThread(threading.Thread):
         self.sdr_ser = None
         self.gps_ser = None
 
+    def is_active(self):
+        """Check if thread is active"""
+        return self._running
+
     def _init_process(self):
         """Initialise background processes"""
         if PARAMETERS['aprs_source'] == SDR:
@@ -143,9 +147,11 @@ class DataCollectorThread(threading.Thread):
                     stdout=subprocess.PIPE, stderr=open('/dev/null')
                 )
             except ValueError:
-                print "Invalid parameters when opening subprocesses"
+                print "SDR: Invalid parameters when opening subprocesses"
+                self._running = False
             except OSError:
-                print "OSError"
+                print "SDR: OSError"
+                self._running = False
         elif PARAMETERS['aprs_source'] == RS232:
             try:
                 self.sdr_ser = serial.Serial(PARAMETERS['sdr_serial_port'],
@@ -160,12 +166,17 @@ class DataCollectorThread(threading.Thread):
                                 PARAMETERS['sdr_serial_dsrdtr'],
                                 PARAMETERS['sdr_serial_interchartimeout'])
             except serial.SerialException:
-                pass
+                print "SDR: SerialException"
+                self._running = False
         else: #data from file
             try:
                 self.filep = open(PARAMETERS['aprs_file'], 'r')
             except IOError:
-                print "IO error"
+                print "File: IO error"
+                self._running = False
+        if self._running == False:
+            print "APRS source failed, stopping data collector"
+            
         if PARAMETERS['gps']:
             try:
                 self.gps_ser = serial.Serial(PARAMETERS['gps_serial_port'],
@@ -180,7 +191,9 @@ class DataCollectorThread(threading.Thread):
                                 PARAMETERS['gps_serial_dsrdtr'],
                                 PARAMETERS['gps_serial_interchartimeout'])
             except serial.SerialException:
-                print "SerialException"
+                print "GPS: SerialException"
+                print "Opening GPS failed, disabling"
+                PARAMETERS['gps'] = 0
 
     def exit(self):
         """Dispose thread"""
@@ -211,10 +224,9 @@ class DataCollectorThread(threading.Thread):
     def run(self):
         """Run thread"""
         print '', self.name, 'started.'
-        self._init_process()
         self._running = True
+        self._init_process()
         while self._running:
-            #print "data collector loop"
             if PARAMETERS['aprs_source'] == SDR:
                 try:
                     aprs_line = self.subprocs['mm'].stdout.readline()
@@ -232,16 +244,11 @@ class DataCollectorThread(threading.Thread):
                     gps_line = self.gps_ser.readline()
                 except serial.SerialException:
                     print "SerialException"
-            #print aprs_line
             if aprs_line != '':
-                #aprs_line = aprs_line.strip()
                 tnc2_frame = aprs_line.strip()
-                #m = self.start_frame_re.match(aprs_line)
-                #if m:
-                # tnc2_frame = m.group(1)
-                # print tnc2_frame
-                #self.aprs_data_handler.handle_data(tnc2_frame)
-                self.aprs_data_handler(tnc2_frame)
+                m = self.start_frame_re.match(tnc2_frame)
+                if m:
+                    self.aprs_data_handler(tnc2_frame)
             if PARAMETERS['gps'] and gps_line != '':
                 self.gps_data_handler(gps_line)
             time.sleep(PARAMETERS['update_interval'])
@@ -268,19 +275,20 @@ class DataHandlerThread(threading.Thread):
             self.datafile = open(PARAMETERS['data_file'], 'w')
             self.rawfile = open(PARAMETERS['raw_file'], 'w')
         except IOError:
-            pass
+            print "Unable to open data file(s)"
 
     def exit(self):
         """Dispose thread"""
         self._running = False
-        self.datacollector.exit()
-        self.datacollector.join()
+        if self.datacollector.is_active():
+            self.datacollector.exit()
+            self.datacollector.join()
         libfap.fap_cleanup()
         try:
             self.rawfile.close()
             self.datafile.close()
         except IOError:
-            print "IO error"
+            print "Unable to close data file(s)"
 
     def is_active(self):
         """Check if thread is active"""
@@ -295,8 +303,9 @@ class DataHandlerThread(threading.Thread):
         self.loc['lon'] = BALLOON['lon0']
         self.loc['alt'] = BALLOON['alt0']
         self.model_data = pyBalloon.pyb_io.read_gfs_set(PARAMETERS['gfs_dir'],
-                            (PARAMETERS['lat0']+1.5, PARAMETERS['lon0']-1.5,
-                            PARAMETERS['lat0']-1.5, PARAMETERS['lon0']+1.5))
+                            (BALLOON['lat0']+1.5, BALLOON['lon0']-1.5,
+                            BALLOON['lat0']-1.5, BALLOON['lon0']+1.5))
+        self._calculate_trajectories()
 
     def run(self):
         """Run thread"""
@@ -324,7 +333,7 @@ class DataHandlerThread(threading.Thread):
 
     def handle_aprs_data(self, tnc2_frame):
         """Handle APRS data from data collector thread"""
-        #print "handle new aprs data"
+        print "handle_aprs_data"
         packet = libfap.fap_parseaprs(tnc2_frame, len(tnc2_frame), 0)
         # handle location data
         if packet[0].type[0] == fapLOCATION.value:
@@ -386,7 +395,6 @@ class DataHandlerThread(threading.Thread):
 
     def handle_gps_data(self, nmea_sentence):
         """Handle GPS data from data collector thread"""
-        print "handle new gps data"
         nmea = pynmea2.NMEASentence.parse(nmea_sentence)
         # handle location data
         if nmea.sentence_type == pynmea2.GGA:
@@ -406,15 +414,18 @@ class DataHandlerThread(threading.Thread):
         for data in self.model_data:
             trajectories.append(pyBalloon.pyb_traj.calc_movements(data,
                                 self.loc0, BALLOON))
-        pyBalloon.pyb_io.save_kml(PARAMETERS['kml_fname'], trajectories)
+        pyBalloon.pyb_io.save_kml(PARAMETERS['kml_file'], trajectories)
 
     def _update_trajectories(self):
         """Calculate estimated trajectories using\
            pyBalloon using collected data"""
         print "update trajectories"
         trajectories = []
+        loc1 = (LIVE_DATA['lats'][-1], LIVE_DATA['lons'][-1], LIVE_DATA['altitudes'][-1])
         for data in self.model_data:
+            #trajectories.append(pyBalloon.pyb_traj.calc_movements(data,
+            #                    loc1, BALLOON,
+            #                    live_data=LIVE_DATA))
             trajectories.append(pyBalloon.pyb_traj.calc_movements(data,
-                                self.loc0, BALLOON,
-                                live_data=LIVE_DATA))
-        pyBalloon.pyb_io.save_kml(PARAMETERS['kml_fname'], trajectories)
+                                loc1, BALLOON))
+        pyBalloon.pyb_io.save_kml(PARAMETERS['kml_file'], trajectories)
